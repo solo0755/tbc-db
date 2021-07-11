@@ -7,7 +7,8 @@
 ####################################################################################################
 
 # need to be changed on each official DB/CORE release
-FULLDB_FILE="TBCDB_1.8.0_VengeanceStrikesBack.sql"
+FULLDB_FILE_ZIP="TBCDB_1.8.0_VengeanceStrikesBack.sql.gz"
+FULLDB_FILE=${FULLDB_FILE_ZIP%.gz}
 DB_TITLE="v1.8 'Vengeance Strikes Back'"
 NEXT_MILESTONES="0.12.4 0.13"
 
@@ -61,7 +62,7 @@ USERNAME="mangos"
 ## Define your password (It is suggested to restrict read access to this file!)
 PASSWORD="mangos"
 
-## Define the path to your core's folder (This is optional)
+## Define the path to your core's folder
 ##   If set the core updates located under sql/updates from this mangos-directory will be added automatically
 CORE_PATH=""
 
@@ -74,6 +75,10 @@ FORCE_WAIT="YES"
 ## Define if the 'dev' directory for processing development SQL files needs to be used
 ##   Set the variable to "YES" to use the dev directory
 DEV_UPDATES="NO"
+
+## Define if AHBot SQL updates need to be applied (by default, assume the core is built without AHBot)
+## Requires CORE_PATH to be set to a proper value. Set the variable to "YES" to import SQL updates.
+AHBOT="NO"
 
 # Enjoy using the tool
 EOF
@@ -122,6 +127,15 @@ fi
 
 ## Full Database
 echo "> Processing TBC database $DB_TITLE ..."
+echo "  - Unziping $FULLDB_FILE_ZIP"
+gzip -kdf "${ADDITIONAL_PATH}Full_DB/$FULLDB_FILE_ZIP"
+if [[ $? != 0 ]]
+then
+  echo "ERROR: cannot unzip ${ADDITIONAL_PATH}Full_DB/$FULLDB_FILE_ZIP"
+  echo "GZIP 1.6 or greater should be installed"
+  exit 1
+fi
+echo "  - Applying $FULLDB_FILE"
 $MYSQL_COMMAND < "${ADDITIONAL_PATH}Full_DB/$FULLDB_FILE"
 if [[ $? != 0 ]]
 then
@@ -275,6 +289,25 @@ then
   echo "  CORE UPDATE FOUND BUT ALREADY IN DB: $UPD_FOUND"
   echo
   echo
+  
+  # Apply optional AHBot commands documentation
+  if [ "$AHBOT" == "YES" ]
+  then
+	  echo "> Trying to apply $CORE_PATH/sql/base/ahbot ..."
+	  for f in "$CORE_PATH/sql/base/ahbot/"*.sql
+	  do
+		echo "    Appending AHBot SQL file `basename $f` to database $DATABASE"
+		$MYSQL_COMMAND < $f
+		if [[ $? != 0 ]]
+		then
+		  echo "ERROR: cannot apply $f"
+		  exit 1
+		fi
+	  done
+	  echo "  AHBot SQL files successfully applied"
+	  echo
+	  echo  
+  fi
 
   # Apply dbc folder
   echo "> Trying to apply $CORE_PATH/sql/base/dbc/original_data ..."
